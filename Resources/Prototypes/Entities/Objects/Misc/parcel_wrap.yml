@@ -7,17 +7,19 @@
   - type: Sprite
     sprite: Objects/Misc/ParcelWrap/parcel_wrap.rsi
     state: brown
-  - type: ParcelWrap
-    parcelPrototype: WrappedParcel
-    wrapDelay: 1.0
-    wrapSound: /Audio/Items/Handcuffs/rope_start.ogg
+  - type: SpawnAndInsertOnInteract
+    toSpawnId: WrappedParcel
+    containerId: frangible_container_contents
+    delay: 1.0
+    interactVerb: parcel-wrap-verb-wrap
+    sound: /Audio/Items/Handcuffs/rope_start.ogg
+    chargesConsumed: 1
     whitelist:
       components:
       - Item
     blacklist:
       components:
       - NukeDisk # Don't try to hide the disk.
-      - WrappedParcel # No wrapping wrapped things.
       tags:
       - ParcelWrapBlacklist
       - FakeNukeDisk # So you can't tell if the nuke disk is real or fake depending on if it can be wrapped or not.
@@ -35,26 +37,30 @@
   - type: ContainerContainer
     containers:
       contents: !type:ContainerSlot
-  - type: Appearance
-  - type: GenericVisualizer
-    visuals:
-      enum.WrappedParcelVisuals.Size:
-        enum.WrappedParcelVisuals.Layer:
-          "Tiny": { state: "parcel-tiny" }
-          "Small": { state: "parcel-small" }
-          "Medium": { state: "parcel-medium" }
-          "Large": { state: "parcel-medium" }
-          "Huge": { state: "parcel-large" }
-          "Ginormous": { state: "parcel-large" }
+#  - type: Appearance
+#  - type: GenericVisualizer
+#    visuals:
+#      enum.WrappedParcelVisuals.Size:
+#        enum.WrappedParcelVisuals.Layer:
+#          "Tiny": { state: "parcel-tiny" }
+#          "Small": { state: "parcel-small" }
+#          "Medium": { state: "parcel-medium" }
+#          "Large": { state: "parcel-medium" }
+#          "Huge": { state: "parcel-large" }
+#          "Ginormous": { state: "parcel-large" }
   - type: Sprite
     sprite: Objects/Misc/ParcelWrap/wrapped_parcel.rsi
     layers:
     - state: parcel-medium
-      map: [ "enum.WrappedParcelVisuals.Layer" ]
-  - type: WrappedParcel
-    unwrapDelay: 0.5
-    unwrapSound: /Audio/Effects/poster_broken.ogg
-    unwrapTrash: ParcelWrapTrash
+#      map: [ "enum.WrappedParcelVisuals.Layer" ]
+  - type: FrangibleContainer
+    delay: 0.5
+    openVerb: parcel-wrap-verb-unwrap
+    sound: /Audio/Effects/poster_broken.ogg
+    trashProtoId: ParcelWrapTrash
+    openOnUse: true
+    openOnReclaimed: true
+    openOnDestroyed: true
   - type: Tag
     tags:
     - Recyclable # Parcel entity is recyclable, and when it's destroyed, it'll drop its contents.
