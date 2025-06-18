@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Content.Shared.ActionBlocker;
@@ -64,6 +65,7 @@ public abstract class SharedStorageSystem : EntitySystem
     [Dependency] private   readonly SharedInteractionSystem _interactionSystem = default!;
     [Dependency] protected readonly SharedItemSystem ItemSystem = default!;
     [Dependency] private   readonly SharedPopupSystem _popupSystem = default!;
+    [Dependency] private readonly QuickPickupSystem _quickPickup = default!;
     [Dependency] private   readonly SharedHandsSystem _sharedHandsSystem = default!;
     [Dependency] private   readonly SharedStackSystem _stack = default!;
     [Dependency] protected readonly SharedTransformSystem TransformSystem = default!;
@@ -149,6 +151,7 @@ public abstract class SharedStorageSystem : EntitySystem
         SubscribeLocalEvent<StorageComponent, EntRemovedFromContainerMessage>(OnEntRemoved);
         SubscribeLocalEvent<StorageComponent, ContainerIsInsertingAttemptEvent>(OnInsertAttempt);
         SubscribeLocalEvent<StorageComponent, GotReclaimedEvent>(OnReclaimed);
+        SubscribeLocalEvent<StorageComponent, QuickPickupEvent>(OnQuickPickup);
 
         SubscribeLocalEvent<MetaDataComponent, StackCountChangedEvent>(OnStackCountChanged);
 
@@ -559,6 +562,20 @@ public abstract class SharedStorageSystem : EntitySystem
 
         var failedEv = new StorageInsertFailedEvent((storage, storage.Comp), (player, player.Comp));
         RaiseLocalEvent(storage, ref failedEv);
+    }
+
+    private void OnQuickPickup(Entity<StorageComponent> entity, ref QuickPickupEvent args)
+    {
+        if (args.Handled)
+            return;
+
+        // Copy event fields because the lambda doesn't like capturing `ref` values.
+        var user = GetEntity(args.User);
+        var pickedUp = GetEntity(args.PickedUp);
+        args.Handled = _quickPickup.TryDoQuickPickup(
+            args,
+            () => PlayerInsertEntityInWorld(entity.AsNullable(), user, pickedUp)
+        );
     }
 
     private void OnSetItemLocation(StorageSetItemLocationEvent msg, EntitySessionEventArgs args)

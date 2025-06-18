@@ -42,62 +42,62 @@ public sealed partial class QuickPickupSystem : EntitySystem
         _useDelay.SetLength(entity.Owner, entity.Comp.Cooldown, DelayId);
     }
 
-    private void AfterInteract(Entity<QuickPickupComponent> pickupEntity, ref AfterInteractEvent args)
+    private void AfterInteract(Entity<QuickPickupComponent> entity, ref AfterInteractEvent args)
     {
         if (args.Handled ||
             args.Target is not { Valid: true } target ||
             target == args.User ||
             !args.CanReach ||
-            !_useDelay.TryResetDelay(pickupEntity, checkDelayed: true, id: DelayId) ||
+            !_useDelay.TryResetDelay(entity, checkDelayed: true, id: DelayId) ||
             _container.IsEntityInContainer(target) ||
             !_itemQuery.HasComponent(target))
             return;
 
-        // Copy `user` because the lambdas below cannot capture `ref args`.
-        var user = args.User;
-        Func<bool> tryInsert;
-        if (TryComp<StorageComponent>(pickupEntity, out var storage))
+        var ev = new QuickPickupEvent(GetNetEntity(entity), GetNetEntity(target), GetNetEntity(args.User));
+        RaiseLocalEvent(entity, ev);
+        args.Handled = ev.Handled;
+    }
+
+    /// <summary>
+    /// This function helps with handling <see cref="QuickPickupEvent"/> by handling
+    /// <see cref="AnimateInsertingEntitiesEvent">animating picked up entities</see> while also invoking
+    /// <paramref name="tryPickup"/>. Returns true if the entity in <paramref name="ev"/> was actually picked up, false
+    /// otherwise.
+    /// </summary>
+    public bool TryDoQuickPickup(QuickPickupEvent ev, Func<bool> tryPickup)
+    {
+        var quickPickupEntity = GetEntity(ev.QuickPickupEntity);
+        var pickedUp = GetEntity(ev.PickedUp);
+
+        if (!TryComp<QuickPickupComponent>(quickPickupEntity, out var quickPickup) ||
+            !TryComp(quickPickupEntity, out TransformComponent? pickupEntityXform) ||
+            !TryComp(pickedUp, out TransformComponent? targetXform))
+            return false;
+
+        var user = GetEntity(ev.User);
+
+        _projectile.EmbedDetach(pickedUp, null, user);
+
+        // Get the picked up entity's position _before_ inserting it, because that changes its position.
+        var position = _transform.ToCoordinates(
+            pickupEntityXform.ParentUid.IsValid() ? pickupEntityXform.ParentUid : quickPickupEntity,
+            _transform.GetMapCoordinates(targetXform)
+        );
+
+        if (tryPickup())
         {
-            tryInsert =
-                () => _storage.PlayerInsertEntityInWorld((pickupEntity, storage), user, target);
-        }
-        else if (TryComp<BallisticAmmoProviderComponent>(pickupEntity, out var ammo))
-        {
-            tryInsert = () => _gun.TryBallisticInsert((pickupEntity, ammo), target, user);
-        }
-        else
-        {
-            DebugTools.Assert(
-                $"Entity {pickupEntity} has {nameof(QuickPickupComponent)}, but neither {nameof(StorageComponent)} nor {nameof(BallisticAmmoProviderComponent)} to pickup into"
+            EntityManager.RaiseSharedEvent(
+                new AnimateInsertingEntitiesEvent(
+                    GetNetEntity(quickPickupEntity),
+                    new List<NetEntity> { GetNetEntity(pickedUp) },
+                    new List<NetCoordinates> { GetNetCoordinates(position) },
+                    new List<Angle> { pickupEntityXform.LocalRotation }
+                ),
+                user
             );
-            return;
+            return true;
         }
 
-        if (TryComp(pickupEntity, out TransformComponent? pickupEntityXform) &&
-            TryComp(target, out TransformComponent? targetXform))
-        {
-            _projectile.EmbedDetach(target, null, user);
-
-            // Get the picked up entity's position _before_ inserting it, because that changes its position.
-            var position = _transform.ToCoordinates(
-                pickupEntityXform.ParentUid.IsValid() ? pickupEntityXform.ParentUid : pickupEntity.Owner,
-                _transform.GetMapCoordinates(targetXform)
-            );
-
-            if (tryInsert())
-            {
-                EntityManager.RaiseSharedEvent(
-                    new AnimateInsertingEntitiesEvent(
-                        GetNetEntity(pickupEntity),
-                        new List<NetEntity> { GetNetEntity(target) },
-                        new List<NetCoordinates> { GetNetCoordinates(position) },
-                        new List<Angle> { pickupEntityXform.LocalRotation }
-                    ),
-                    args.User
-                );
-            }
-
-            args.Handled = true;
-        }
+        return false;
     }
 }

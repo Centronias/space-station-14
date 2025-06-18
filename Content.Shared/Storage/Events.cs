@@ -16,3 +16,15 @@ public sealed partial class AreaPickupDoAfterEvent : DoAfterEvent
 
     public override DoAfterEvent Clone() => this;
 }
+
+[Serializable, NetSerializable]
+public sealed partial class QuickPickupEvent(
+    NetEntity quickPickupEntity,
+    NetEntity pickedUp,
+    NetEntity user
+) : HandledEntityEventArgs
+{
+    public readonly NetEntity QuickPickupEntity = quickPickupEntity;
+    public readonly NetEntity PickedUp = pickedUp;
+    public readonly NetEntity User = user;
+}

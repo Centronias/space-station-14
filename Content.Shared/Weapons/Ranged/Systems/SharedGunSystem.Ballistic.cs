@@ -2,6 +2,8 @@ using Content.Shared.DoAfter;
 using Content.Shared.Examine;
 using Content.Shared.Interaction;
 using Content.Shared.Interaction.Events;
+using Content.Shared.Storage;
+using Content.Shared.Storage.EntitySystems;
 using Content.Shared.Verbs;
 using Content.Shared.Weapons.Ranged.Components;
 using Content.Shared.Weapons.Ranged.Events;
@@ -15,6 +17,7 @@ public abstract partial class SharedGunSystem
 {
     [Dependency] private readonly SharedDoAfterSystem _doAfter = default!;
     [Dependency] private readonly SharedInteractionSystem _interaction = default!;
+    [Dependency] private readonly QuickPickupSystem _quickPickup = default!;
 
 
     protected virtual void InitializeBallistic()
@@ -30,6 +33,7 @@ public abstract partial class SharedGunSystem
         SubscribeLocalEvent<BallisticAmmoProviderComponent, AfterInteractEvent>(OnBallisticAfterInteract);
         SubscribeLocalEvent<BallisticAmmoProviderComponent, AmmoFillDoAfterEvent>(OnBallisticAmmoFillDoAfter);
         SubscribeLocalEvent<BallisticAmmoProviderComponent, UseInHandEvent>(OnBallisticUse);
+        SubscribeLocalEvent<BallisticAmmoProviderComponent, QuickPickupEvent>(OnQuickPickup);
     }
 
     private void OnBallisticUse(EntityUid uid, BallisticAmmoProviderComponent component, UseInHandEvent args)
@@ -260,6 +264,17 @@ public abstract partial class SharedGunSystem
     {
         args.Count = GetBallisticShots(component);
         args.Capacity = component.Capacity;
+    }
+
+    private void OnQuickPickup(Entity<BallisticAmmoProviderComponent> e, ref QuickPickupEvent args)
+    {
+        if (args.Handled)
+            return;
+
+        // Copy event fields because the lambda doesn't like capturing `ref` values.
+        var user = GetEntity(args.User);
+        var pickedUp = GetEntity(args.PickedUp);
+        args.Handled = _quickPickup.TryDoQuickPickup(args, () => TryBallisticInsert(e, pickedUp, user));
     }
 
     /// <summary>
