@@ -76,7 +76,10 @@ public sealed partial class QuickPickupSystem : EntitySystem
 
         var user = GetEntity(ev.User);
 
-        _projectile.EmbedDetach(pickedUp, null, user);
+        if (TryComp<EmbeddableProjectileComponent>(pickedUp, out var embeddable))
+        {
+            _projectile.EmbedDetach(pickedUp, embeddable, user);
+        }
 
         // Get the picked up entity's position _before_ inserting it, because that changes its position.
         var position = _transform.ToCoordinates(
