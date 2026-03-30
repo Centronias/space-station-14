@@ -1,17 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Content.Shared.Examine;
 using Content.Shared.Maps;
 using Content.Shared.Tag;
-using Robust.Shared.Audio;
-using Robust.Shared.Audio.Systems;
-using Robust.Shared.GameStates;
-using Robust.Shared.Network;
-using Robust.Shared.Map;
-using Robust.Shared.Prototypes;
-using Robust.Shared.Random;
-using Robust.Shared.Serialization;
-using Robust.Shared.Timing;
 
 namespace Content.Shared.Pinpointer;
 
@@ -44,6 +36,7 @@ public abstract class SharedNavMapSystem : EntitySystem
 
         // Data handling events
         SubscribeLocalEvent<NavMapComponent, ComponentGetState>(OnGetState);
+        SubscribeLocalEvent<ConfigurableNavMapBeaconComponent, ExaminedEvent>(OnConfigurableExamined);
 
         SubscribeAllEvent<NavMapWarpRequest>(OnNavMapWarp);
 
@@ -207,6 +200,17 @@ public abstract class SharedNavMapSystem : EntitySystem
         }
 
         args.State = new NavMapDeltaState(chunks, component.Beacons, component.RegionProperties, new(component.Chunks.Keys));
+    }
+
+    private void OnConfigurableExamined(Entity<ConfigurableNavMapBeaconComponent> ent, ref ExaminedEvent args)
+    {
+        if (!args.IsInDetailsRange || !TryComp<NavMapBeaconComponent>(ent, out var navMap))
+            return;
+
+        args.PushMarkup(Loc.GetString("nav-beacon-examine-text",
+            ("enabled", navMap.Enabled),
+            ("color", navMap.Color.ToHexNoAlpha()),
+            ("label", navMap.Text ?? string.Empty)));
     }
 
     #endregion
