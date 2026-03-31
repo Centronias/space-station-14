@@ -4,6 +4,15 @@ using System.Runtime.CompilerServices;
 using Content.Shared.Examine;
 using Content.Shared.Maps;
 using Content.Shared.Tag;
+using Robust.Shared.Audio;
+using Robust.Shared.Audio.Systems;
+using Robust.Shared.GameStates;
+using Robust.Shared.Map;
+using Robust.Shared.Network;
+using Robust.Shared.Player;
+using Robust.Shared.Prototypes;
+using Robust.Shared.Serialization;
+using Robust.Shared.Timing;
 
 namespace Content.Shared.Pinpointer;
 
@@ -21,7 +30,6 @@ public abstract class SharedNavMapSystem : EntitySystem
     public const int FloorMask = AllDirMask << (int) NavMapChunkType.Floor;
 
     [Robust.Shared.IoC.Dependency] private readonly SharedAudioSystem _audio = default!;
-    [Robust.Shared.IoC.Dependency] private readonly IRobustRandom _random = default!;
     [Robust.Shared.IoC.Dependency] private readonly TagSystem _tagSystem = default!;
     [Robust.Shared.IoC.Dependency] private readonly INetManager _net = default!;
     [Robust.Shared.IoC.Dependency] private readonly IGameTiming _timing = default!;
@@ -37,8 +45,6 @@ public abstract class SharedNavMapSystem : EntitySystem
         // Data handling events
         SubscribeLocalEvent<NavMapComponent, ComponentGetState>(OnGetState);
         SubscribeLocalEvent<ConfigurableNavMapBeaconComponent, ExaminedEvent>(OnConfigurableExamined);
-
-        SubscribeAllEvent<NavMapWarpRequest>(OnNavMapWarp);
 
         _doorQuery = GetEntityQuery<NavMapDoorComponent>();
     }
@@ -70,6 +76,24 @@ public abstract class SharedNavMapSystem : EntitySystem
 
         return NavMapChunkType.Invalid;
     }
+
+    /// <summary>
+    /// This function exists to help other systems with subscribing to and handling <see cref="NavMapWarpRequest"/>.
+    /// It should be used if there are no other BUI subscriptions with the same component/key combination.
+    /// </summary>
+    /// <seealso cref="SubscribeToNavMapWarpRequest"/>
+    public void SubscribeUiToNavMapWarpRequest<TComp>(Subscriptions subs, object uiKey) where TComp : Component =>
+        subs.BuiEvents<TComp>(uiKey, SubscribeToNavMapWarpRequest);
+
+    /// <summary>
+    /// This function exists to help other systems with subscribing to and handling <see cref="NavMapWarpRequest"/>.
+    /// It should be used if there is already a <see cref="BoundUserInterfaceRegisterExt.BuiEvents"/> you want to handle
+    /// this event in.
+    /// </summary>
+    /// <seealso cref="SubscribeUiToNavMapWarpRequest"/>
+    public void SubscribeToNavMapWarpRequest<TComp>(BoundUserInterfaceRegisterExt.Subscriber<TComp> buiSubs)
+        where TComp : Component =>
+        buiSubs.Event<NavMapWarpRequest>(OnNavMapWarpRequest);
 
     protected bool TryCreateNavMapBeaconData(EntityUid uid, NavMapBeaconComponent component, TransformComponent xform, MetaDataComponent meta, [NotNullWhen(true)] out NavMapBeacon? beaconData)
     {
@@ -138,15 +162,9 @@ public abstract class SharedNavMapSystem : EntitySystem
         return regionOverlays;
     }
 
-    public void RequestWarpTo(EntityUid uid, Vector2 target)
+    private void OnNavMapWarpRequest<TComp>(Entity<TComp> uiOwner, ref NavMapWarpRequest args) where TComp : Component
     {
-        var message = new NavMapWarpRequest(GetNetEntity(uid), target);
-        RaisePredictiveEvent(message);
-    }
-
-    private void OnNavMapWarp(NavMapWarpRequest args)
-    {
-        var uid = GetEntity(args.Uid);
+        var uid = args.Actor;
 
         // This was only tested with the AI Eye but should theoretically work with any other future remote-controlled things
         if (TryComp<EyeComponent>(uid, out var eye) && eye.Target is not null)
@@ -155,16 +173,20 @@ public abstract class SharedNavMapSystem : EntitySystem
         if (!TryComp<NavMapWarpComponent>(uid, out var warpComp) || _timing.CurTime < warpComp.NextWarpAllowed)
             return;
 
-        warpComp.NextWarpAllowed = _timing.CurTime + TimeSpan.FromSeconds(warpComp.Delay);
+        warpComp.NextWarpAllowed = _timing.CurTime + warpComp.Delay;
         var xform = Transform(uid);
 
         if (xform.MapUid is null)
             return;
 
-        _audio.PlayPredicted(warpComp.Sounds,
-            uid,
-            uid,
-            AudioParams.Default.WithVariation(warpComp.PitchVariation));
+        _audio.PlayGlobal(
+            warpComp.Sounds,
+            // Play the sound for both -- `uid` is correct for the aghost case while `uiOwner` is correct for the AI eye case.
+            // Maybe this should be configured on the `NavMapWarpComponent`, but eh.
+            Filter.Entities(uiOwner, uid),
+            recordReplay: false,
+            AudioParams.Default.WithVariation(warpComp.PitchVariation)
+        );
 
         // This was designed for incorporeal entities, thus there aren't any collision checks or anything
         _transformSystem.SetCoordinates(uid, xform, new EntityCoordinates(xform.MapUid.Value, args.Target));

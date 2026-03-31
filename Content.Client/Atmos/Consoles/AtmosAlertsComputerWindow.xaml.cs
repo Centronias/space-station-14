@@ -15,6 +15,7 @@ using Robust.Shared.Timing;
 using Robust.Shared.Utility;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Numerics;
 
 namespace Content.Client.Atmos.Consoles;
 
@@ -37,6 +38,7 @@ public sealed partial class AtmosAlertsComputerWindow : FancyWindow
 
     public event Action<NetEntity?>? SendFocusChangeMessageAction;
     public event Action<NetEntity, bool>? SendDeviceSilencedMessageAction;
+    public event Action<Vector2>? NavMapWarpAction;
 
     private bool _autoScrollActive = false;
     private bool _autoScrollAwaitsUpdate = false;
@@ -65,6 +67,7 @@ public sealed partial class AtmosAlertsComputerWindow : FancyWindow
         // Pass the owner to nav map
         _owner = owner;
         NavMap.Owner = _owner;
+        NavMap.WarpAction += location => NavMapWarpAction?.Invoke(location);
 
         // Set nav map colors
         NavMap.WallColor = _wallColor;
@@ -77,7 +80,7 @@ public sealed partial class AtmosAlertsComputerWindow : FancyWindow
         {
             NavMap.MapUid = xform.GridUid;
 
-            // Assign station name      
+            // Assign station name
             if (_entManager.TryGetComponent<MetaDataComponent>(xform.GridUid, out var stationMetaData))
                 stationName = stationMetaData.EntityName;
 

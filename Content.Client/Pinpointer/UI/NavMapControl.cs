@@ -34,7 +34,6 @@ public partial class NavMapControl : MapGridControl
     [Dependency] private readonly ISharedPlayerManager? _player = default;
 
     private readonly SharedTransformSystem _transformSystem;
-    private readonly SharedNavMapSystem _navMapSystem;
 
     public EntityUid? Owner;
     public EntityUid? MapUid;
@@ -44,6 +43,7 @@ public partial class NavMapControl : MapGridControl
     // Actions
     public event Action<NetEntity?>? TrackedEntitySelectedAction;
     public event Action<DrawingHandleScreen>? PostWallDrawingAction;
+    public event Action<Vector2>? WarpAction;
 
     // Tracked data
     public Dictionary<EntityCoordinates, (bool Visible, Color Color)> TrackedCoordinates = new();
@@ -122,7 +122,6 @@ public partial class NavMapControl : MapGridControl
         IoCManager.InjectDependencies(this);
 
         _transformSystem = EntManager.System<SharedTransformSystem>();
-        _navMapSystem = EntManager.System<SharedNavMapSystem>();
 
         BackgroundColor = Color.FromSrgb(TileColor.WithAlpha(BackgroundOpacity));
 
@@ -242,7 +241,7 @@ public partial class NavMapControl : MapGridControl
         else if (args.Function == ContentKeyFunctions.AltActivateItemInWorld)
         {
             if (_player?.LocalEntity is not null && CalculateWorldPos(args, out var pos))
-                _navMapSystem.RequestWarpTo(_player.LocalEntity.Value, pos.Value);
+                WarpAction?.Invoke(pos.Value);
         }
     }
 

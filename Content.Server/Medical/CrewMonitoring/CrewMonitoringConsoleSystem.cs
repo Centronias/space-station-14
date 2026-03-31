@@ -1,17 +1,15 @@
 using System.Linq;
-using Content.Server.DeviceNetwork;
-using Content.Server.DeviceNetwork.Systems;
-using Content.Shared.PowerCell;
 using Content.Shared.DeviceNetwork;
 using Content.Shared.DeviceNetwork.Events;
 using Content.Shared.Medical.CrewMonitoring;
 using Content.Shared.Medical.SuitSensor;
 using Content.Shared.Pinpointer;
+using Content.Shared.PowerCell;
 using Robust.Server.GameObjects;
 
 namespace Content.Server.Medical.CrewMonitoring;
 
-public sealed class CrewMonitoringConsoleSystem : EntitySystem
+public sealed class CrewMonitoringConsoleSystem : SharedCrewMonitoringConsoleSystem
 {
     [Dependency] private readonly PowerCellSystem _cell = default!;
     [Dependency] private readonly UserInterfaceSystem _uiSystem = default!;
@@ -24,7 +22,7 @@ public sealed class CrewMonitoringConsoleSystem : EntitySystem
         SubscribeLocalEvent<CrewMonitoringConsoleComponent, BoundUIOpenedEvent>(OnUIOpened);
     }
 
-    private void OnRemove(EntityUid uid, CrewMonitoringConsoleComponent component, ComponentRemove args)
+    private static void OnRemove(EntityUid uid, CrewMonitoringConsoleComponent component, ComponentRemove args)
     {
         component.ConnectedSensors.Clear();
     }

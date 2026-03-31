@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Content.Shared.Pinpointer;
 using JetBrains.Annotations;
 
 namespace Content.Shared.Power;
@@ -8,6 +9,13 @@ public abstract class SharedPowerMonitoringConsoleSystem : EntitySystem
 {
     // Chunk size is limited as we require ChunkSize^2 <= 32 (number of bits in an int)
     public const int ChunkSize = 5;
+
+    [Robust.Shared.IoC.Dependency] private readonly SharedNavMapSystem _navMap = default!;
+
+    public override void Initialize()
+    {
+        _navMap.SubscribeUiToNavMapWarpRequest<PowerMonitoringConsoleComponent>(Subs, PowerMonitoringConsoleUiKey.Key);
+    }
 
     /// <summary>
     /// Converts the chunk's tile into a bitflag for the slot.

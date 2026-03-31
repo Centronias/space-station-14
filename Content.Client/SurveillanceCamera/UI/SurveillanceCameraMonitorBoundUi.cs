@@ -1,6 +1,6 @@
 using Content.Client.Eye;
+using Content.Shared.Pinpointer;
 using Content.Shared.SurveillanceCamera;
-using Robust.Client.GameObjects;
 using Robust.Client.UserInterface;
 
 namespace Content.Client.SurveillanceCamera.UI;
@@ -34,6 +34,7 @@ public sealed class SurveillanceCameraMonitorBoundUserInterface : BoundUserInter
         _window.SubnetRefresh += OnSubnetRefresh;
         _window.CameraSwitchTimer += OnCameraSwitchTimer;
         _window.CameraDisconnect += OnCameraDisconnect;
+        _window.NavMapWarpAction += location => SendPredictedMessage(new NavMapWarpRequest(location));
 
         var xform = EntMan.GetComponent<TransformComponent>(Owner);
         var gridUid = xform.GridUid ?? xform.MapUid;

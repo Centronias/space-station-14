@@ -9,6 +9,7 @@ using Robust.Shared.Map;
 using Robust.Shared.Timing;
 using Robust.Shared.Utility;
 using System.Linq;
+using System.Numerics;
 
 namespace Content.Client.Power;
 
@@ -24,6 +25,7 @@ public sealed partial class PowerMonitoringWindow : FancyWindow
     private NetEntity? _focusEntity;
 
     public event Action<NetEntity?, PowerMonitoringConsoleGroup>? SendPowerMonitoringConsoleMessageAction;
+    public event Action<Vector2>? NavMapWarpAction;
 
     private Dictionary<PowerMonitoringConsoleGroup, (SpriteSpecifier.Texture, Color)> _groupBlips = new()
     {
@@ -44,6 +46,7 @@ public sealed partial class PowerMonitoringWindow : FancyWindow
 
         // Set trackable entity selected action
         NavMap.TrackedEntitySelectedAction += SetTrackedEntityFromNavMap;
+        NavMap.WarpAction += location => NavMapWarpAction?.Invoke(location);
 
         // Update nav map
         NavMap.ForceNavMapUpdate();

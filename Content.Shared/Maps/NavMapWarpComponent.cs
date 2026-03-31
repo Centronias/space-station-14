@@ -24,6 +24,5 @@ public sealed partial class NavMapWarpComponent : Component
     public TimeSpan NextWarpAllowed = TimeSpan.Zero;
 
     [DataField]
-    public float Delay = 2;
-
+    public TimeSpan Delay = TimeSpan.FromSeconds(2);
 }

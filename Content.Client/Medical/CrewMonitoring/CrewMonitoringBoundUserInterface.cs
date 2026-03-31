@@ -1,4 +1,5 @@
 using Content.Shared.Medical.CrewMonitoring;
+using Content.Shared.Pinpointer;
 using Robust.Client.UserInterface;
 
 namespace Content.Client.Medical.CrewMonitoring;
@@ -31,6 +32,7 @@ public sealed class CrewMonitoringBoundUserInterface : BoundUserInterface
 
         _menu = this.CreateWindow<CrewMonitoringWindow>();
         _menu.Set(stationName, gridUid);
+        _menu.NavMapWarpAction += location => SendPredictedMessage(new NavMapWarpRequest(location));
     }
 
     protected override void UpdateState(BoundUserInterfaceState state)

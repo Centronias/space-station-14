@@ -28,6 +28,7 @@ public sealed class StationMapBoundUserInterface : BoundUserInterface
 
         _window = this.CreateWindow<StationMapWindow>();
         _window.Title = EntMan.GetComponent<MetaDataComponent>(Owner).EntityName;
+        _window.NavMapWarpAction += location => SendPredictedMessage(new NavMapWarpRequest(location));
 
         string stationName = string.Empty;
         if(EntMan.TryGetComponent<MetaDataComponent>(gridUid, out var gridMetaData))

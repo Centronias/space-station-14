@@ -32,6 +32,8 @@ public sealed partial class CrewMonitoringWindow : FancyWindow
     private bool _tryToScrollToListFocus;
     private Texture? _blipTexture;
 
+    public event Action<Vector2>? NavMapWarpAction;
+
     public CrewMonitoringWindow()
     {
         RobustXamlLoader.Load(this);
@@ -41,6 +43,7 @@ public sealed partial class CrewMonitoringWindow : FancyWindow
         _spriteSystem = _entManager.System<SpriteSystem>();
 
         NavMap.TrackedEntitySelectedAction += SetTrackedEntityFromNavMap;
+        NavMap.WarpAction += location => NavMapWarpAction?.Invoke(location);
     }
 
     public void Set(string stationName, EntityUid? mapUid)

@@ -1,9 +1,10 @@
+using Content.Shared.Medical.CrewMonitoring;
 using Content.Shared.Medical.SuitSensor;
 
 namespace Content.Server.Medical.CrewMonitoring;
 
 [RegisterComponent]
-[Access(typeof(CrewMonitoringConsoleSystem))]
+[Access(typeof(SharedCrewMonitoringConsoleSystem))]
 public sealed partial class CrewMonitoringConsoleComponent : Component
 {
     /// <summary>

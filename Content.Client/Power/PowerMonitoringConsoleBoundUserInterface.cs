@@ -1,3 +1,4 @@
+using Content.Shared.Pinpointer;
 using Content.Shared.Power;
 using Robust.Client.UserInterface;
 
@@ -17,6 +18,7 @@ public sealed class PowerMonitoringConsoleBoundUserInterface : BoundUserInterfac
         _menu = this.CreateWindow<PowerMonitoringWindow>();
         _menu.SetEntity(Owner);
         _menu.SendPowerMonitoringConsoleMessageAction += SendPowerMonitoringConsoleMessage;
+        _menu.NavMapWarpAction += location => SendPredictedMessage(new NavMapWarpRequest(location));
     }
 
     protected override void UpdateState(BoundUserInterfaceState state)

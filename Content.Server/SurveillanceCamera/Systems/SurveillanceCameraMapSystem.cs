@@ -1,16 +1,18 @@
 using System.Numerics;
 using Content.Server.Power.Components;
 using Content.Shared.DeviceNetwork.Components;
+using Content.Shared.SurveillanceCamera;
 using Content.Shared.SurveillanceCamera.Components;
 
 namespace Content.Server.SurveillanceCamera;
 
-public sealed class SurveillanceCameraMapSystem : EntitySystem
+public sealed class SurveillanceCameraMapSystem : SharedSurveillanceCameraMapSystem
 {
     [Dependency] private readonly SharedTransformSystem _transform = default!;
 
     public override void Initialize()
     {
+        base.Initialize();
         SubscribeLocalEvent<SurveillanceCameraComponent, MoveEvent>(OnCameraMoved);
         SubscribeLocalEvent<SurveillanceCameraComponent, EntityUnpausedEvent>(OnCameraUnpaused);
 

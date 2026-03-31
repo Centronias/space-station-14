@@ -1,4 +1,5 @@
 using Content.Shared.Atmos.Components;
+using Content.Shared.Pinpointer;
 
 namespace Content.Client.Atmos.Consoles;
 
@@ -16,6 +17,7 @@ public sealed class AtmosAlertsComputerBoundUserInterface : BoundUserInterface
         _menu = new AtmosAlertsComputerWindow(this, Owner);
         _menu.OpenCentered();
         _menu.OnClose += Close;
+        _menu.NavMapWarpAction += location => SendPredictedMessage(new NavMapWarpRequest(location));
     }
 
     protected override void UpdateState(BoundUserInterfaceState state)

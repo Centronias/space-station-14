@@ -8,7 +8,7 @@ using Robust.Server.GameObjects;
 
 namespace Content.Server.Pinpointer;
 
-public sealed class StationMapSystem : EntitySystem
+public sealed class StationMapSystem : SharedStationMapSystem
 {
     [Dependency] private readonly UserInterfaceSystem _ui = default!;
     [Dependency] private readonly PowerCellSystem _cell = default!;

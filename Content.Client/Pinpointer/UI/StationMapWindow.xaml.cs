@@ -14,12 +14,15 @@ public sealed partial class StationMapWindow : FancyWindow
 
     private readonly List<StationMapBeaconControl> _buttons = new();
 
+    public event Action<Vector2>? NavMapWarpAction;
+
     public StationMapWindow()
     {
         RobustXamlLoader.Load(this);
         IoCManager.InjectDependencies(this);
 
         FilterBar.OnTextChanged += (bar) => OnFilterChanged(bar.Text);
+        NavMapScreen.WarpAction += location => NavMapWarpAction?.Invoke(location);
     }
 
     public void Set(string stationName, EntityUid? mapUid, EntityUid? trackedEntity)
