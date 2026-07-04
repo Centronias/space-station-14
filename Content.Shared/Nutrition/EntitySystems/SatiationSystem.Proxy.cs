@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Content.Shared.Nutrition.Components;
 using Content.Shared.Nutrition.Prototypes;
 using Content.Shared.StatusIcon;
@@ -127,40 +129,82 @@ public sealed partial class SatiationSystem
     }
 
     /// <summary>
-    /// This function returns a value from <see cref="valuesByThreshold"/> in the same manner by which the fields on a
-    /// <see cref="SatiationPrototype"/> are retrieved. The current value of <paramref name="entity"/>'s satiation of the
-    /// given <paramref name="type"/> is retrieved, and then the value in <paramref name="valuesByThreshold"/> with the
-    /// lowest key greater than the current satiation value is returned.
-    /// In the case that <paramref name="entity"/> does not have a satiation of the given <paramref name="type"/>,
-    /// returns false.
-    /// In the case that <paramref name="valuesByThreshold"/> is empty, returns false.
+    /// This function returns a value from <see cref="valuesByThreshold"/> based on the current value of
+    /// <paramref name="entity"/>'s satiation of the given <paramref name="type"/>. The value in
+    /// <paramref name="valuesByThreshold"/> with the lowest key greater than the current satiation value is returned.
     /// </summary>
+    /// <param name="entity">The entity whose satiation is considered</param>
+    /// <param name="type">The type of satiation to consider</param>
+    /// <param name="valuesByThreshold">The values, keyed by <see cref="SatiationValue"/> thresholds</param>
+    /// <param name="result">The value selected from <paramref name="valuesByThreshold"/></param>
+    /// <param name="nextLowerThreshold">
+    /// The keying-threshold-value of the next threshold below the selected value. Most consumers will not have a use
+    /// for this value, but it is used by <see cref="BaseSatiationEffectSystem{TComp,T}"/>'s prediction of value decay.
+    /// </param>
+    /// <typeparam name="T">The type of values in <paramref name="valuesByThreshold"/></typeparam>
+    /// <returns>
+    /// True if a value was selected. False if <paramref name="valuesByThreshold"/> is empty, if the current value of
+    /// the specified satiation is higher than all thresholds, or the given entity does not have a satiation of the
+    /// given type.
+    /// </returns>
     public bool TryGetValueByThreshold<T>(
         Entity<SatiationComponent> entity,
         [ForbidLiteral] ProtoId<SatiationTypePrototype> type,
         Dictionary<SatiationValue, T> valuesByThreshold,
-        out T? result
+        out T? result,
+        out int? nextLowerThreshold
     )
     {
         result = default;
-        if (GetAndResolveSatiationOfType(entity, type) is not var (_, proto))
+        nextLowerThreshold = null;
+        if (GetValueOrNull(entity, type) is not { } currentValue ||
+            GetAndResolveSatiationOfType(entity, type) is not var (_, proto))
             return false;
 
-        var newValues = new Dictionary<int, T>();
-        foreach (var (key, value) in valuesByThreshold)
+        using var valuesByDescendingThreshold = valuesByThreshold
+            // Resolve keys to threshold integers, discarding any keys which cannot be resolved.
+            .Select(it => proto.GetValueOrNull(it.Key) is { } value ? ((int, T)?)(value, it.Value) : null)
+            .OfType<(int, T)>()
+            // Order by descending threshold.
+            .OrderByDescending(it => it.Item1)
+            .GetEnumerator();
+        if (!valuesByDescendingThreshold.MoveNext())
         {
-            if (proto.GetValueOrNull(key) is not { } threshold)
-                continue;
-            newValues[threshold] = value;
+            // `values` is empty, so there are no values to return.
+            result = default;
+            nextLowerThreshold = null;
+            return false;
         }
 
-        result = default;
-        if (GetValueOrNull(entity, type) is not { } currentValue)
+        if (currentValue > valuesByDescendingThreshold.Current.Item1)
+        {
+            // `currentSatiation` is higher than all thresholds, so we don't have a value, but we can return a next
+            // lower threshold.
+            result = default;
+            nextLowerThreshold = valuesByDescendingThreshold.Current.Item1;
             return false;
+        }
 
-        var ret = TryGetValueByThreshold(currentValue, newValues, it => it.Key, out var resultPair, out _);
-        result = resultPair.Value;
-        return ret;
+        var nextHigher = valuesByDescendingThreshold.Current;
+        while (valuesByDescendingThreshold.MoveNext())
+        {
+            var nextLower = valuesByDescendingThreshold.Current;
+            if (currentValue > nextLower.Item1)
+            {
+                // The current value is below `nextHigher` and above `nextLower`, so `nextHigher` is the correct threshold.
+                result = nextHigher.Item2;
+                nextLowerThreshold = nextLower.Item1;
+                return true;
+            }
+
+            // Loop, setting `nextLower` to the next iteration's `nextHigher`
+            nextHigher = nextLower;
+        }
+
+        // We've run out of thresholds below.
+        result = nextHigher.Item2;
+        nextLowerThreshold = null;
+        return true;
     }
 
     /// <summary>
@@ -174,10 +218,11 @@ public sealed partial class SatiationSystem
         [ForbidLiteral] ProtoId<SatiationTypePrototype> type
     )
     {
-        if (entity.Comp.GetOrNull(type) is not { } satiation)
+        if (entity.Comp.GetOrNull(type) is not { } satiation ||
+            !ProtoMan.Resolve(satiation.Prototype, out var proto))
             return null;
 
-        var iconProtoId = GetCurrentAndNextLowestThresholds(satiation).Current.Icon;
+        TryGetValueByThreshold(entity, type, proto.Icons, out var iconProtoId, out _);
         return ProtoMan.Resolve(iconProtoId, out var icon) ? icon : null;
     }
 

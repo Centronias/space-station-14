@@ -17,8 +17,8 @@ public sealed partial class SatiationDamageComponent : Component
     /// <summary>
     /// Damage values by satiation threshold, for a satiation type.
     /// </summary>
-    [DataField(required: true), AutoNetworkedField, IncludeDataField]
-    public Dictionary<ProtoId<SatiationTypePrototype>, Dictionary<SatiationValue, DamageSpecifier?>> Satiations;
+    [DataField(required: true, customTypeSerializer: typeof(SatiationTypeToThresholdsDictSerializer<DamageSpecifier?>)), AutoNetworkedField, IncludeDataField]
+    public SatiationTypeToThresholdsDict<DamageSpecifier?> Satiations;
 
     /// <summary>
     /// How often the damage is applied.
@@ -31,11 +31,4 @@ public sealed partial class SatiationDamageComponent : Component
     /// </summary>
     [DataField(customTypeSerializer: typeof(TimeOffsetSerializer)), AutoNetworkedField, AutoPausedField]
     public TimeSpan NextDamageTime;
-
-    /// <summary>
-    /// All of the damage values that will be applied at <see cref="NextDamageTime"/>. Cached to avoid regularly
-    /// performing relatively expensive threshold lookups.
-    /// </summary>
-    [ViewVariables(VVAccess.ReadOnly)]
-    public readonly Dictionary<ProtoId<SatiationTypePrototype>, DamageSpecifier> CachedDamageValues = new();
 }

@@ -1,47 +1,47 @@
+using Content.Shared.Damage;
 using Content.Shared.Damage.Systems;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.Nutrition.Components;
+using Content.Shared.Nutrition.Prototypes;
+using Robust.Shared.Prototypes;
+using Robust.Shared.Timing;
 
 namespace Content.Shared.Nutrition.EntitySystems;
 
 /// <summary>
 /// This system implements the behavior of <see cref="SatiationDamageComponent"/>
 /// </summary>
-public sealed partial class SatiationDamageSystem : BaseContinuousSatiationEffectSystem<SatiationDamageComponent>
+public sealed partial class
+    SatiationDamageSystem : BaseSatiationEffectSystem<SatiationDamageComponent, DamageSpecifier?>
 {
     [Dependency] private DamageableSystem _damageable = default!;
     [Dependency] private MobStateSystem _mobState = default!;
+    [Dependency] private IGameTiming _timing = default!;
 
-    protected override TimeSpan GetContinuousEffectFrequency(SatiationDamageComponent comp) => comp.Frequency;
-    protected override ref TimeSpan GetContinuousEffectTime(SatiationDamageComponent comp) => ref comp.NextDamageTime;
-
-    /// <summary>
-    /// Caches the damage values for the current thresholds.
-    /// </summary>
-    protected override void OnThresholdChanged(
-        Entity<SatiationDamageComponent, SatiationComponent> entity,
-        ref SatiationThresholdChangedEvent args
-    )
+    public override void Update(float frameTime)
     {
-        entity.Comp1.CachedDamageValues.Clear();
-        var satiation = new Entity<SatiationComponent>(entity, entity);
-        foreach (var (type, thresholds) in entity.Comp1.Satiations)
+        base.Update(frameTime);
+
+        var q = EntityQueryEnumerator<SatiationDamageComponent>();
+        while (q.MoveNext(out var ent, out var comp))
         {
-            if (!SatiationSystem.TryGetValueByThreshold(satiation, type, thresholds, out var res) || res == null)
+            if (_mobState.IsDead(ent) ||
+                _timing.CurTime < comp.NextDamageTime)
                 continue;
 
-            entity.Comp1.CachedDamageValues.Add(type, res);
+            comp.NextDamageTime = _timing.CurTime + comp.Frequency;
+
+            foreach (var (_, thresholds) in comp.Satiations.Satiations)
+            {
+                if (thresholds.Current is not { } damage)
+                    continue;
+
+                _damageable.TryChangeDamage(ent, damage, interruptsDoAfters: false);
+            }
         }
     }
 
-    protected override void OnContinuousEffect(Entity<SatiationDamageComponent, SatiationComponent> entity)
-    {
-        if (_mobState.IsDead(entity))
-            return;
+    protected override DamageSpecifier? DefaultValue() => null;
 
-        foreach (var (_, damage) in entity.Comp1.CachedDamageValues)
-        {
-            _damageable.TryChangeDamage(entity.Owner, damage, interruptsDoAfters: false);
-        }
-    }
+    protected override SatiationTypeToThresholdsDict<DamageSpecifier?> GetThresholds(SatiationDamageComponent comp) => comp.Satiations;
 }

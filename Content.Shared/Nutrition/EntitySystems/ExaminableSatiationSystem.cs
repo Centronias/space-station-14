@@ -1,6 +1,8 @@
 using Content.Shared.Examine;
 using Content.Shared.IdentityManagement;
 using Content.Shared.Nutrition.Components;
+using Content.Shared.Nutrition.Prototypes;
+using Robust.Shared.Prototypes;
 
 namespace Content.Shared.Nutrition.EntitySystems;
 
@@ -9,27 +11,22 @@ namespace Content.Shared.Nutrition.EntitySystems;
 /// <see cref="ExaminedEvent"/>s.
 /// </summary>
 /// <seealso cref="ExaminableSatiationComponent"/>
-public sealed partial class ExaminableSatiationSystem : BaseSatiationEffectSystem<ExaminableSatiationComponent>
+public sealed partial class ExaminableSatiationSystem : BaseSatiationEffectSystem<ExaminableSatiationComponent, LocId?>
 {
+    protected override SatiationTypeToThresholdsDict<LocId?> GetThresholds(ExaminableSatiationComponent comp) => comp.Satiations;
+
+    protected override LocId? DefaultValue() => null;
+
     [SubscribeLocalEvent]
     private void OnExamine(Entity<ExaminableSatiationComponent> entity, ref ExaminedEvent args)
     {
-        if (!SatiationQuery.TryComp(entity, out var satiationComp))
-            return;
-        var satiation = new Entity<SatiationComponent>(entity, satiationComp);
         var identity = Identity.Entity(entity, EntityManager);
-
-        foreach (var (satType, thresholds) in entity.Comp.Satiations)
+        foreach (var (_, thresholds) in entity.Comp.Satiations.Satiations)
         {
-            if (!SatiationSystem.TryGetValueByThreshold(
-                    satiation,
-                    satType,
-                    thresholds,
-                    out var descriptionLocId
-                ) || descriptionLocId == null)
+            if (thresholds.Current is not { } loc)
                 continue;
 
-            args.PushMarkup(Loc.GetString(descriptionLocId, ("entity", identity)));
+            args.PushMarkup(Loc.GetString(loc, ("entity", identity)));
         }
     }
 }

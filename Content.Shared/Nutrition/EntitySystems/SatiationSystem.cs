@@ -6,7 +6,6 @@ using Content.Shared.Random.Helpers;
 using Content.Shared.Rejuvenate;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
-using Robust.Shared.Utility;
 
 namespace Content.Shared.Nutrition.EntitySystems;
 
@@ -31,35 +30,23 @@ public sealed partial class SatiationSystem : EntitySystem
     public static readonly ProtoId<SatiationTypePrototype> Thirst = "Thirst";
 
     /// <inheritdoc/>
-    public override void Initialize()
-    {
-        base.Initialize();
-        RepopulateThresholdCache();
-    }
-
-    /// <inheritdoc/>
     public override void Update(float frameTime)
     {
-        base.Update(frameTime);
-
         var query = EntityQueryEnumerator<SatiationComponent>();
         while (query.MoveNext(out var uid, out var component))
         {
             Entity<SatiationComponent> entity = (uid, component);
             foreach (var (satiation, proto) in GetSatiationsAndTypes(entity))
             {
-                if (_timing.CurTime < satiation.ProjectedThresholdChangeTime)
-                    continue;
+                if (_timing.CurTime >= satiation.NextAlertUpdateTime)
+                {
+                    Scrump(entity, satiation, proto);
+                }
 
-                // If it's time to change the threshold, just update the authoritative value to what we expect the
-                // current value to be. `SetAuthoritativeValue` will handle updating the threshold, applying threshold
-                // effects, etc.
-                SetAuthoritativeValue(
-                    entity,
-                    satiation,
-                    proto,
-                    CalculateCurrentValue(satiation, proto)
-                );
+                if (_timing.CurTime >= satiation.NextDecayRateModUpdateTime)
+                {
+                    SetAuthoritativeValue(entity, satiation, proto, CalculateCurrentValue(satiation, proto));
+                }
             }
         }
     }
@@ -109,98 +96,6 @@ public sealed partial class SatiationSystem : EntitySystem
         {
             SetValue(entity, type, satiationValue: int.MaxValue);
         }
-    }
-
-
-    /// <summary>
-    /// The backing implementation for <see cref="GetCurrentAndNextLowestThresholds"/> which selects a value from
-    /// <paramref name="values"/> based on <paramref name="currentSatiation"/>. Each value is assigned a threshold value
-    /// by <paramref name="thresholdGetter"/>, and then the value with the lowest threshold greater than
-    /// <paramref name="currentSatiation"/> is returned as <paramref name="currentValue"/>.
-    /// <paramref name="nextLowerValue"/> is a similar value, except it is the one associated with the highest threshold
-    /// less than <paramref name="currentSatiation"/> (or null if no such value exists).
-    /// <br/>
-    /// If <paramref name="values"/> is empty, returns false.
-    /// If <paramref name="currentSatiation"/> is greater than all threshold values assigned, returns false.
-    /// </summary>
-    private static bool TryGetValueByThreshold<T>(
-        float currentSatiation,
-        IEnumerable<T> values,
-        Func<T, int> thresholdGetter,
-        out T? currentValue,
-        out T? nextLowerValue
-    )
-    {
-        using var valuesByDescendingThreshold = values
-            .Select(value => (threshold: thresholdGetter(value), value))
-            .OrderByDescending(it => it.threshold)
-            .GetEnumerator();
-
-        nextLowerValue = default;
-        if (!valuesByDescendingThreshold.MoveNext())
-        {
-            // `values` is empty, so there are no values to return.
-            currentValue = default;
-            return false;
-        }
-
-        var (firstThreshold, firstValue) = valuesByDescendingThreshold.Current;
-        if (currentSatiation > firstThreshold)
-        {
-            // `currentSatiation` is higher than all thresholds, so return nothing.
-            currentValue = default;
-            return false;
-        }
-
-        currentValue = firstValue;
-        while (valuesByDescendingThreshold.MoveNext())
-        {
-            nextLowerValue = valuesByDescendingThreshold.Current.value;
-            var nextThreshold = valuesByDescendingThreshold.Current.threshold;
-            if (currentSatiation > nextThreshold)
-            {
-                // This threshold is LOWER than the current satiation, so current satiation must be between this and the
-                // previous threshold.
-                break;
-            }
-
-            // This threshold is higher than the current value, so it's a candidate for the correct threshold.
-            currentValue = nextLowerValue;
-
-            // If we don't loop again, it's because there is no next lower value.
-            nextLowerValue = default;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Retrieves the <see cref="SatiationThresholdData"/> for <paramref name="satiation"/>, considering its prototype
-    /// and current value. We also return the <c>NextLowest</c> for the hot-path case of
-    /// <see cref="SetAuthoritativeValue"/>.
-    /// </summary>
-    private (SatiationThresholdData Current, SatiationThresholdData? NextLowest) GetCurrentAndNextLowestThresholds(
-        Satiation satiation
-    )
-    {
-        if (!ProtoMan.Resolve(satiation.Prototype, out var proto))
-            return default;
-        var thresholds = GetThresholds(satiation.Prototype);
-
-        if (!TryGetValueByThreshold(
-                CalculateCurrentValue(satiation, proto),
-                thresholds,
-                it => it.Threshold,
-                out var currentValue,
-                out var nextLowestValue
-            ))
-        {
-            // False means the current value is higher than all thresholds, so return default values and the
-            // highest/first threshold as "next highest"
-            return (SatiationThresholdData.Default, thresholds.FirstOrNull());
-        }
-
-        return (currentValue, nextLowestValue);
     }
 
     /// <summary>
@@ -264,51 +159,94 @@ public sealed partial class SatiationSystem : EntitySystem
         satiation.LastAuthoritativeChangeTime = _timing.CurTime;
         satiation.LastAuthoritativeValue = proto.ClampSatiationWithinThresholds(value);
 
-        // Check if the threshold has changed.
-        var (newThreshold, nextLowestThreshold) = GetCurrentAndNextLowestThresholds(satiation);
-        if (newThreshold.Threshold != satiation.CurrentThresholdTop)
+        if (!TryGetValueByThreshold(
+                entity,
+                satiation.SatiationType,
+                proto.DecayModifiers,
+                out var currentDecayMod,
+                out var nextLowerThreshold
+            ))
         {
-            // Set the new threshold, and any other cached values related to the threshold.
-            satiation.CurrentThresholdTop = newThreshold.Threshold;
-            satiation.ActualDecayRate = proto.BaseDecayRate * newThreshold.DecayModifier;
+            currentDecayMod = 1f;
+        }
 
-            // Apply threshold effects.
-            if (newThreshold.Alert is { } alert)
+        satiation.ActualDecayRate = proto.BaseDecayRate * currentDecayMod;
+
+        if (nextLowerThreshold is { } t)
+        {
+            satiation.NextDecayRateModUpdateTime =
+                _timing.CurTime + TimeSpan.FromSeconds((value - t) / satiation.ActualDecayRate);
+        }
+        else
+        {
+            satiation.NextDecayRateModUpdateTime = null;
+        }
+
+        var updateEvent = new SatiationUpdateEvent(satiation.SatiationType);
+        RaiseLocalEvent(entity, ref updateEvent);
+
+        Dirty(entity);
+    }
+
+    /// <remarks>
+    /// This is basically a reimplementation of <see cref="BaseSatiationEffectSystem{TComp,T}.OnSatiationUpdate"/>.
+    /// </remarks>
+    [SubscribeLocalEvent]
+    private void UpdateAlertsOnSatiationUpdated(Entity<SatiationComponent> entity, ref SatiationUpdateEvent args)
+    {
+        if (entity.Comp.GetOrNull(args.Type) is not { } satiation ||
+            !ProtoMan.Resolve(satiation.Prototype, out var proto))
+            return;
+
+        Scrump(entity, satiation, proto);
+    }
+
+    private void Scrump(
+        Entity<SatiationComponent> entity,
+        Satiation satiation,
+        SatiationPrototype proto
+    )
+    {
+        if (TryGetValueByThreshold(
+                entity,
+                satiation.SatiationType,
+                proto.Alerts,
+                out var result,
+                out var nextLowerThreshold))
+        {
+            if (result is { } alert)
             {
                 _alerts.ShowAlert(entity.Owner, alert);
+                satiation.NextAlertUpdateTime = nextLowerThreshold is { } lower
+                    ? GetTimeToDecay(entity, satiation.SatiationType, lower)
+                    : null;
             }
             else
             {
                 _alerts.ClearAlertCategory(entity.Owner, proto.AlertCategory);
+                satiation.NextAlertUpdateTime = null;
             }
-
-            var ev = new SatiationThresholdChangedEvent(satiation.SatiationType);
-            RaiseLocalEvent(entity, ref ev);
-        }
-
-        // Update when the threshold will decay to the next lower threshold.
-        if (nextLowestThreshold?.Threshold is not { } nextThresholdValue)
-        {
-            // If there's no lower threshold, we can never decay lower.
-            satiation.ProjectedThresholdChangeTime = null;
         }
         else
         {
-            satiation.ProjectedThresholdChangeTime = _timing.CurTime +
-                                                     TimeSpan.FromSeconds(
-                                                         (value - nextThresholdValue) /
-                                                         satiation.ActualDecayRate
-                                                     );
+            _alerts.ClearAlertCategory(entity.Owner, proto.AlertCategory);
+            satiation.NextAlertUpdateTime = null;
         }
+    }
 
-        Dirty(entity);
+    public TimeSpan? GetTimeToDecay(Entity<SatiationComponent> entity,
+        ProtoId<SatiationTypePrototype> type,
+        int threshold
+    )
+    {
+        if (GetValueOrNull(entity, type) is not { } value ||
+            entity.Comp.GetOrNull(type) is not { } satiation)
+            return null;
+
+        return _timing.CurTime + TimeSpan.FromSeconds((value - threshold) / satiation.ActualDecayRate);
     }
 }
 
-/// <summary>
-/// This event is raised on an entity with <see cref="SatiationComponent"/> when one of its satiations changes the
-/// threshold it is currently in.
-/// </summary>
-/// <param name="Satiation">The satiation whose threshold changed.</param>
+// Best effort on change to authoritative value or decay rate
 [ByRefEvent]
-public readonly record struct SatiationThresholdChangedEvent(ProtoId<SatiationTypePrototype> Satiation);
+public readonly record struct SatiationUpdateEvent(ProtoId<SatiationTypePrototype> Type);

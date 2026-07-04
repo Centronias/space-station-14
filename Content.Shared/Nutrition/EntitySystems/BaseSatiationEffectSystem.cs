@@ -1,4 +1,6 @@
 using Content.Shared.Nutrition.Components;
+using Content.Shared.Nutrition.Prototypes;
+using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
 
 namespace Content.Shared.Nutrition.EntitySystems;
@@ -7,84 +9,81 @@ namespace Content.Shared.Nutrition.EntitySystems;
 /// This abstract system provides a convenient interface for implementing effects which react to changes in
 /// <see cref="Satiation"/> thresholds.
 /// </summary>
-public abstract partial class BaseSatiationEffectSystem<TComp> : EntitySystem where TComp : Component
+public abstract partial class BaseSatiationEffectSystem<TComp, T> : EntitySystem where TComp : Component
 {
-    [Dependency] protected SatiationSystem SatiationSystem = default!;
-    [Dependency] protected EntityQuery<SatiationComponent> SatiationQuery;
+    [Dependency] private SatiationSystem _satiation = default!;
+    [Dependency] private EntityQuery<SatiationComponent> _satiationQuery;
+    [Dependency] private IGameTiming _timing = default!;
+
+    protected abstract SatiationTypeToThresholdsDict<T> GetThresholds(TComp comp);
+    protected abstract T DefaultValue();
 
     public override void Initialize()
     {
         base.Initialize();
 
         SubscribeLocalEvent<TComp, MapInitEvent>(OnMapInit);
-        SubscribeLocalEvent<TComp, SatiationThresholdChangedEvent>(OnThresholdChanged);
+        SubscribeLocalEvent<TComp, SatiationUpdateEvent>(OnSatiationUpdate);
     }
 
-    private void OnMapInit(Entity<TComp> entity, ref MapInitEvent args)
+    [MustCallBase]
+    protected virtual void OnMapInit(Entity<TComp> entity, ref MapInitEvent args)
     {
         // Make sure we have a satiation component. Realistically, this just exists to cause test failures if an entity
         // with `TComp` doesn't have a `SatiationComponent`.
-        var comp = EnsureComp<SatiationComponent>(entity);
-        OnMapInit((entity, entity, comp), ref args);
+        EnsureComp<SatiationComponent>(entity);
     }
 
-    protected virtual void OnMapInit(Entity<TComp, SatiationComponent> entity, ref MapInitEvent args) { }
-
-    private void OnThresholdChanged(Entity<TComp> entity, ref SatiationThresholdChangedEvent args)
+    [MustCallBase]
+    protected  void OnSatiationUpdate(Entity<TComp> entity, ref SatiationUpdateEvent args)
     {
-        if (!SatiationQuery.TryComp(entity, out var comp))
+        if (!_satiationQuery.TryComp(entity, out var comp))
             return;
-        OnThresholdChanged((entity, entity, comp), ref args);
+
+        Scrump(entity, comp, args.Type);
     }
 
-    protected virtual void OnThresholdChanged(
-        Entity<TComp, SatiationComponent> entity,
-        ref SatiationThresholdChangedEvent args
-    )
+    private void Scrump(Entity<TComp> entity, SatiationComponent comp, ProtoId<SatiationTypePrototype> type)
     {
-    }
-}
+        if (!GetThresholds(entity.Comp).Satiations.TryGetValue(type, out var thresholds))
+            return;
 
-/// <summary>
-/// A further extension to <see cref="BaseSatiationEffectSystem{T}"/>, this system makes it easy to implement regularly
-/// applied effects based on satiation thresholds.
-/// </summary>
-/// <typeparam name="TComp"></typeparam>
-public abstract partial class BaseContinuousSatiationEffectSystem<TComp> : BaseSatiationEffectSystem<TComp>
-    where TComp : Component
-{
-    [Dependency] private IGameTiming _timing = default!;
+        if (_satiation.TryGetValueByThreshold(
+                (entity, comp),
+                type,
+                thresholds.Thresholds,
+                out var result,
+                out var nextLowerThreshold))
+        {
+            thresholds.Current = result ?? DefaultValue();
+            thresholds.ProjectedThresholdChangeTime = nextLowerThreshold is { } lower
+                ? _satiation.GetTimeToDecay((entity, comp), type, lower)
+                : null;
+        }
+        else
+        {
+            thresholds.Current = DefaultValue();
+            thresholds.ProjectedThresholdChangeTime = null;
+        }
+        Dirty(entity);
+
+        AfterSatiationUpdate(entity);
+    }
+
+    protected virtual void AfterSatiationUpdate(Entity<TComp> entity) { }
 
     public override void Update(float frameTime)
     {
-        var query = EntityQueryEnumerator<TComp, SatiationComponent>();
-        while (query.MoveNext(out var uid, out var component, out var satiation))
+        var q = EntityQueryEnumerator<TComp, SatiationComponent>();
+        while (q.MoveNext(out var ent, out var comp, out var satiation))
         {
-            ref var time = ref GetContinuousEffectTime(component);
-            if (_timing.CurTime < time)
-                continue;
+            foreach (var (type, thresholds) in GetThresholds(comp).Satiations)
+            {
+                if (_timing.CurTime < thresholds.ProjectedThresholdChangeTime)
+                    continue;
 
-            // Update the next tick time.
-            time += GetContinuousEffectFrequency(component);
-
-            // Do effects
-            OnContinuousEffect((uid, component, satiation));
+                Scrump((ent, comp), satiation, type);
+            }
         }
     }
-
-    /// <summary>
-    /// This function is called when the effects should be applied.
-    /// </summary>
-    protected abstract void OnContinuousEffect(Entity<TComp, SatiationComponent> entity);
-
-    /// <summary>
-    /// Retrieves the time between effect applications. Used to update the next effect time.
-    /// </summary>
-    protected abstract TimeSpan GetContinuousEffectFrequency(TComp comp);
-
-    /// <summary>
-    /// Gets the next effect time, for checking if we should apply effects, and for modifying the value to set the next
-    /// effect time.
-    /// </summary>
-    protected abstract ref TimeSpan GetContinuousEffectTime(TComp comp);
 }

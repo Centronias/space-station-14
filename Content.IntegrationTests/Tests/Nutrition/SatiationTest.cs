@@ -79,25 +79,28 @@ public sealed class SatiationTest
             sys.SetValue(entity, SatType, value: 100);
             using (Assert.EnterMultipleScope())
             {
-                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result);
+                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(100));
+                Assert.That(nextLower, Is.EqualTo(0));
             }
 
             sys.SetValue(entity, SatType, value: 55);
             using (Assert.EnterMultipleScope())
             {
-                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result);
+                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(60));
+                Assert.That(nextLower, Is.EqualTo(0));
             }
 
             sys.SetValue(entity, SatType, value: 0);
             using (Assert.EnterMultipleScope())
             {
-                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result);
+                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
-                Assert.That(result, Is.EqualTo(0));
+                Assert.That(result, Is.Zero);
+                Assert.That(nextLower, Is.EqualTo(0));
             }
         });
     }
@@ -125,33 +128,37 @@ public sealed class SatiationTest
             sys.SetValue(entity, SatType, MaxxedKey);
             using (Assert.EnterMultipleScope())
             {
-                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result);
+                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
-                Assert.That(result, Is.EqualTo(0));
+                Assert.That(result, Is.Zero);
+                Assert.That(nextLower, Is.EqualTo(0));
             }
 
             sys.ModifyValue(entity, SatType, -10);
             using (Assert.EnterMultipleScope())
             {
-                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result);
+                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
-                Assert.That(result, Is.EqualTo(0));
+                Assert.That(result, Is.Zero);
+                Assert.That(nextLower, Is.EqualTo(0));
             }
 
             sys.SetValue(entity, SatType, MiddleKey);
             using (Assert.EnterMultipleScope())
             {
-                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result);
+                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(40));
+                Assert.That(nextLower, Is.EqualTo(0));
             }
 
             sys.SetValue(entity, SatType, DeadKey);
             using (Assert.EnterMultipleScope())
             {
-                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result);
+                var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(20));
+                Assert.That(nextLower, Is.EqualTo(0));
             }
         });
     }

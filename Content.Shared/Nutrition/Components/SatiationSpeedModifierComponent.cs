@@ -11,9 +11,6 @@ namespace Content.Shared.Nutrition.Components;
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState, Access(typeof(SatiationSpeedModifierSystem))]
 public sealed partial class SatiationSpeedModifierComponent : Component
 {
-    /// <summary>
-    /// A dictionary of satiation types to a dictionary containing movement speed modifiers keyed by satiation thresholds.
-    /// </summary>
-    [DataField(required: true), AutoNetworkedField, IncludeDataField]
-    public Dictionary<ProtoId<SatiationTypePrototype>, Dictionary<SatiationValue, float>> Satiations;
+    [DataField(required: true, customTypeSerializer: typeof(SatiationTypeToThresholdsDictSerializer<float>)), AutoNetworkedField]
+    public SatiationTypeToThresholdsDict<float> Satiations;
 }

@@ -1,53 +1,33 @@
 using Content.Shared.Movement.Systems;
 using Content.Shared.Nutrition.Components;
+using Content.Shared.Nutrition.Prototypes;
+using Robust.Shared.Prototypes;
 
 namespace Content.Shared.Nutrition.EntitySystems;
 
-/// <summary>
-/// This system implements movement speed modifiers based on satiations.
-/// </summary>
-public sealed partial class SatiationSpeedModifierSystem : BaseSatiationEffectSystem<SatiationSpeedModifierComponent>
+public sealed partial class SatiationSpeedModifierSystem :
+    BaseSatiationEffectSystem<SatiationSpeedModifierComponent, float>
 {
     [Dependency] private MovementSpeedModifierSystem _movementSpeedModifier = default!;
 
-    /// <summary>
-    /// Forwards threshold changes to movement speed modifier refresh events.
-    /// </summary>
-    protected override void OnThresholdChanged(
-        Entity<SatiationSpeedModifierComponent, SatiationComponent> entity,
-        ref SatiationThresholdChangedEvent args
-    )
-    {
-        if (!entity.Comp1.Satiations.ContainsKey(args.Satiation))
-            return;
+    protected override SatiationTypeToThresholdsDict<float> GetThresholds(SatiationSpeedModifierComponent comp) => comp.Satiations;
 
+    protected override float DefaultValue() => 1f;
+
+    protected override void AfterSatiationUpdate(Entity<SatiationSpeedModifierComponent> entity)
+    {
         _movementSpeedModifier.RefreshMovementSpeedModifiers(entity);
     }
 
-    /// <summary>
-    /// Applies a speed modifier based on the current satiation level.
-    /// </summary>
     [SubscribeLocalEvent]
-    private void OnRefreshMovementSpeed(
+    private static void OnRefreshMovementSpeed(
         Entity<SatiationSpeedModifierComponent> entity,
         ref RefreshMovementSpeedModifiersEvent args
     )
     {
-        if (!SatiationQuery.TryComp(entity, out var comp))
-            return;
-        var satiation = new Entity<SatiationComponent>(entity, comp);
-
-        foreach (var (satiationType, thresholds) in entity.Comp.Satiations)
+        foreach (var (_, thresholds) in entity.Comp.Satiations.Satiations)
         {
-            if (!SatiationSystem.TryGetValueByThreshold(
-                    satiation,
-                    satiationType,
-                    thresholds,
-                    out var res
-                ))
-                continue;
-
-            args.ModifySpeed(res);
+            args.ModifySpeed(thresholds.Current);
         }
     }
 }
