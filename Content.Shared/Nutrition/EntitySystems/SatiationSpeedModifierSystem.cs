@@ -10,7 +10,8 @@ public sealed partial class SatiationSpeedModifierSystem :
 {
     [Dependency] private MovementSpeedModifierSystem _movementSpeedModifier = default!;
 
-    protected override SatiationTypeToThresholdsDict<float> GetThresholds(SatiationSpeedModifierComponent comp) => comp.Satiations;
+    protected override Dictionary<ProtoId<SatiationTypePrototype>, SatiationThresholds<float>> GetThresholds(
+        SatiationSpeedModifierComponent comp) => comp.Satiations;
 
     protected override float DefaultValue() => 1f;
 
@@ -25,7 +26,7 @@ public sealed partial class SatiationSpeedModifierSystem :
         ref RefreshMovementSpeedModifiersEvent args
     )
     {
-        foreach (var (_, thresholds) in entity.Comp.Satiations.Satiations)
+        foreach (var (_, thresholds) in entity.Comp.Satiations)
         {
             args.ModifySpeed(thresholds.Current);
         }

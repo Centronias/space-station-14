@@ -82,7 +82,7 @@ public sealed class SatiationTest
                 var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(100));
-                Assert.That(nextLower, Is.EqualTo(0));
+                Assert.That(nextLower, Is.EqualTo(80));
             }
 
             sys.SetValue(entity, SatType, value: 55);
@@ -91,7 +91,7 @@ public sealed class SatiationTest
                 var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(60));
-                Assert.That(nextLower, Is.EqualTo(0));
+                Assert.That(nextLower, Is.EqualTo(40));
             }
 
             sys.SetValue(entity, SatType, value: 0);
@@ -100,7 +100,7 @@ public sealed class SatiationTest
                 var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.Zero);
-                Assert.That(nextLower, Is.EqualTo(0));
+                Assert.That(nextLower, Is.Null);
             }
         });
     }
@@ -131,7 +131,7 @@ public sealed class SatiationTest
                 var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.Zero);
-                Assert.That(nextLower, Is.EqualTo(0));
+                Assert.That(nextLower, Is.EqualTo(MiddleValue));
             }
 
             sys.ModifyValue(entity, SatType, -10);
@@ -140,7 +140,7 @@ public sealed class SatiationTest
                 var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.Zero);
-                Assert.That(nextLower, Is.EqualTo(0));
+                Assert.That(nextLower, Is.EqualTo(MiddleValue));
             }
 
             sys.SetValue(entity, SatType, MiddleKey);
@@ -149,7 +149,7 @@ public sealed class SatiationTest
                 var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(40));
-                Assert.That(nextLower, Is.EqualTo(0));
+                Assert.That(nextLower, Is.Zero);
             }
 
             sys.SetValue(entity, SatType, DeadKey);
@@ -158,7 +158,7 @@ public sealed class SatiationTest
                 var res = sys.TryGetValueByThreshold(entity, SatType, dict, out var result, out var nextLower);
                 Assert.That(res, Is.True);
                 Assert.That(result, Is.EqualTo(20));
-                Assert.That(nextLower, Is.EqualTo(0));
+                Assert.That(nextLower, Is.Null);
             }
         });
     }

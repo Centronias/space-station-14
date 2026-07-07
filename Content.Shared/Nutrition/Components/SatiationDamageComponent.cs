@@ -17,8 +17,8 @@ public sealed partial class SatiationDamageComponent : Component
     /// <summary>
     /// Damage values by satiation threshold, for a satiation type.
     /// </summary>
-    [DataField(required: true, customTypeSerializer: typeof(SatiationTypeToThresholdsDictSerializer<DamageSpecifier?>)), AutoNetworkedField, IncludeDataField]
-    public SatiationTypeToThresholdsDict<DamageSpecifier?> Satiations;
+    [DataField(required: true), AutoNetworkedField]
+    public Dictionary<ProtoId<SatiationTypePrototype>, SatiationThresholds<DamageSpecifier?>> Satiations;
 
     /// <summary>
     /// How often the damage is applied.

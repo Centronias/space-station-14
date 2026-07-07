@@ -13,7 +13,8 @@ namespace Content.Shared.Nutrition.EntitySystems;
 /// <seealso cref="ExaminableSatiationComponent"/>
 public sealed partial class ExaminableSatiationSystem : BaseSatiationEffectSystem<ExaminableSatiationComponent, LocId?>
 {
-    protected override SatiationTypeToThresholdsDict<LocId?> GetThresholds(ExaminableSatiationComponent comp) => comp.Satiations;
+    protected override Dictionary<ProtoId<SatiationTypePrototype>, SatiationThresholds<LocId?>> GetThresholds(
+        ExaminableSatiationComponent comp) => comp.Satiations;
 
     protected override LocId? DefaultValue() => null;
 
@@ -21,7 +22,7 @@ public sealed partial class ExaminableSatiationSystem : BaseSatiationEffectSyste
     private void OnExamine(Entity<ExaminableSatiationComponent> entity, ref ExaminedEvent args)
     {
         var identity = Identity.Entity(entity, EntityManager);
-        foreach (var (_, thresholds) in entity.Comp.Satiations.Satiations)
+        foreach (var (_, thresholds) in entity.Comp.Satiations)
         {
             if (thresholds.Current is not { } loc)
                 continue;

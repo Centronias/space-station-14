@@ -31,7 +31,7 @@ public sealed partial class
 
             comp.NextDamageTime = _timing.CurTime + comp.Frequency;
 
-            foreach (var (_, thresholds) in comp.Satiations.Satiations)
+            foreach (var (_, thresholds) in comp.Satiations)
             {
                 if (thresholds.Current is not { } damage)
                     continue;
@@ -43,5 +43,5 @@ public sealed partial class
 
     protected override DamageSpecifier? DefaultValue() => null;
 
-    protected override SatiationTypeToThresholdsDict<DamageSpecifier?> GetThresholds(SatiationDamageComponent comp) => comp.Satiations;
+    protected override Dictionary<ProtoId<SatiationTypePrototype>, SatiationThresholds<DamageSpecifier?>> GetThresholds(SatiationDamageComponent comp) => comp.Satiations;
 }

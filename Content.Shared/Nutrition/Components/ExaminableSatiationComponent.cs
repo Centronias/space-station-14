@@ -16,10 +16,6 @@ public sealed partial class ExaminableSatiationComponent : Component
     /// <summary>
     /// Examination localization string IDs per threshold per satiation type.
     /// </summary>
-    [DataField(required: true, customTypeSerializer: typeof(SatiationTypeToThresholdsDictSerializer<LocId?>)), AutoNetworkedField, IncludeDataField]
-    public SatiationTypeToThresholdsDict<LocId?> Satiations;
-
-    // OR
-    // [DataField(required: true, customTypeSerializer: typeof(DictionaryOfSatiationTypeProtoIdToSatiationThresholdsSerializer<LocId?>)), AutoNetworkedField, IncludeDataField]
-    // public Dictionary<ProtoId<SatiationTypePrototype>, SatiationThresholds<LocId?>> Satiations;
+    [DataField(required: true), AutoNetworkedField]
+    public Dictionary<ProtoId<SatiationTypePrototype>, SatiationThresholds<LocId?>> Satiations;
 }
