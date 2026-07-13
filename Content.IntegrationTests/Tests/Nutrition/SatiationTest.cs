@@ -15,7 +15,7 @@ namespace Content.IntegrationTests.Tests.Nutrition;
 public sealed class SatiationTest
 {
     [Test]
-    public async Task BasicTest()
+    public async Task SatiationBasicTest()
     {
         await using var pair = await PoolManager.GetServerClient();
         var server = pair.Server;
@@ -54,7 +54,7 @@ public sealed class SatiationTest
     }
 
     [Test]
-    public async Task GetValueByThresholdTest()
+    public async Task SatiationGetValueByThresholdTest()
     {
         await using var pair = await PoolManager.GetServerClient();
         var server = pair.Server;
@@ -106,7 +106,7 @@ public sealed class SatiationTest
     }
 
     [Test]
-    public async Task GetValueByThresholdKeysTest()
+    public async Task SatiationGetValueByThresholdKeysTest()
     {
         await using var pair = await PoolManager.GetServerClient();
         var server = pair.Server;
@@ -164,7 +164,7 @@ public sealed class SatiationTest
     }
 
     [Test]
-    public async Task RangeTests()
+    public async Task SatiationRangeTests()
     {
         await using var pair = await PoolManager.GetServerClient();
         var server = pair.Server;
