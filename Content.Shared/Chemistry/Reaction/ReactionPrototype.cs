@@ -24,7 +24,7 @@ namespace Content.Shared.Chemistry.Reaction
         /// <summary>
         /// Reactants required for the reaction to occur.
         /// </summary>
-        [DataField(customTypeSerializer: typeof(PrototypeIdDictionarySerializer<ReactantPrototype, ReagentPrototype>))]
+        [DataField]
         public Dictionary<ProtoId<ReagentPrototype>, ReactantPrototype> Reactants = new();
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace Content.Shared.Chemistry.Reaction
         /// <summary>
         /// Reagents created when the reaction occurs.
         /// </summary>
-        [DataField(customTypeSerializer: typeof(PrototypeIdDictionarySerializer<FixedPoint2, ReagentPrototype>))]
+        [DataField]
         public Dictionary<ProtoId<ReagentPrototype>, FixedPoint2> Products = new();
 
         /// <summary>
