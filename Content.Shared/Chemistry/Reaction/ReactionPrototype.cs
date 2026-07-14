@@ -4,7 +4,6 @@ using Content.Shared.EntityEffects;
 using Content.Shared.FixedPoint;
 using Robust.Shared.Audio;
 using Robust.Shared.Prototypes;
-using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom.Prototype.Dictionary;
 
 namespace Content.Shared.Chemistry.Reaction
 {
@@ -25,7 +24,7 @@ namespace Content.Shared.Chemistry.Reaction
         /// Reactants required for the reaction to occur.
         /// </summary>
         [DataField]
-        public Dictionary<ProtoId<ReagentPrototype>, ReactantPrototype> Reactants = new();
+        public Dictionary<ProtoId<ReagentPrototype>, ReactantInfo> Reactants = new();
 
         /// <summary>
         ///     The minimum temperature the reaction can occur at.
@@ -117,12 +116,12 @@ namespace Content.Shared.Chemistry.Reaction
     }
 
     /// <summary>
-    /// Prototype for chemical reaction reactants.
+    /// Details about a reactant in a <see cref="ReactionPrototype.Reactants">reaction</see>.
     /// </summary>
     /// <param name="Amount">Minimum amount of the reactant needed for the reaction to occur.</param>
     /// <param name="Catalyst">Whether or not the reactant is a catalyst. Catalysts aren't removed when a reaction occurs.</param>
     [DataRecord]
-    public partial record struct ReactantPrototype(
+    public partial record struct ReactantInfo(
         FixedPoint2 Amount,
         bool Catalyst
     );

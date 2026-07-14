@@ -113,7 +113,7 @@ public sealed partial class GuideReagentReaction : BoxContainer, ISearchableCont
         SetMixingCategory(categories, null, sysMan);
     }
 
-    private void SetReagents(List<ReagentQuantity> reagents, ref Container container, IPrototypeManager protoMan, bool addLinks = true)
+    private static void SetReagents(List<ReagentQuantity> reagents, ref Container container, IPrototypeManager protoMan, bool addLinks = true)
     {
         var amounts = new Dictionary<ProtoId<ReagentPrototype>, FixedPoint2>();
         foreach (var (reagent, quantity) in reagents)
@@ -123,8 +123,8 @@ public sealed partial class GuideReagentReaction : BoxContainer, ISearchableCont
         SetReagents(amounts, ref container, protoMan, addLinks);
     }
 
-    private void SetReagents(
-        Dictionary<ProtoId<ReagentPrototype>, ReactantPrototype> reactants,
+    private static void SetReagents(
+        Dictionary<ProtoId<ReagentPrototype>, ReactantInfo> reactants,
         ref Container container,
         IPrototypeManager protoMan,
         bool addLinks = true)
